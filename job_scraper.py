@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Apr 28 11:35:04 2020
 
-@author: chrislovejoy
+@author: Wesley Lau
 """
 
 import urllib
@@ -35,8 +34,8 @@ def find_jobs_from(website, job_title, location, desired_characs, filename="resu
         jobs_list, num_listings = extract_job_information_indeed(job_soup, desired_characs)
 
     if website == 'Hinge':
-        job_soup = load_hinge_jobs_div(job_title, location)
-        jobs_list, num_listings = extract_job_information_indeed(job_soup, desired_characs)
+        job_soup = load_hinge_jobs_div()
+        jobs_list, num_listings = extract_job_information_hinge(job_soup, desired_characs)
 
     if website == 'CWjobs':
         location_of_driver = os.getcwd()
@@ -57,24 +56,58 @@ def save_jobs_to_excel(jobs_list, filename):
     jobs.to_excel(filename)
 
 
-## ================== FUNCTIONS FOR INDEED.CO.UK =================== ##
+## ================== FUNCTIONS FOR HINGE HEALTH =================== ##
 
 def load_hinge_jobs_div(commitment='Full-time', team='Engineering'):
     getVars = {'commitment': commitment, 'team': team}
     url = ('https://jobs.lever.co/hingehealth?' + urllib.parse.urlencode(getVars))
     page = requests.get(url)
     soup = BeautifulSoup(page.content, "html.parser")
-    # job_soup = soup.find(id="resultsCol")
-    # job_soup = soup.find(data-qa="posting-name")
-    job_soup = soup.find_all('h5')
+    job_soup = soup.find(class_="postings-group")
     return job_soup
 
+##extract info from soup
+def extract_job_information_hinge(job_soup, desired_characs):
+    job_elems = job_soup.find_all('a', class_='posting-title')
 
-##we should probably modify functions one by one and test their outputs as we go, actually should try both functions
-# at once cause they rely on each other
+    cols = []
+    extracted_info = []
+
+    if 'titles' in desired_characs:
+        titles = []
+        cols.append('titles')
+        for job_elem in job_elems:
+            titles.append(extract_job_title_hinge(job_elem))
+        extracted_info.append(titles)
+
+    if 'links' in desired_characs:
+        links = []
+        cols.append('links')
+        for job_elem in job_elems:
+            links.append(extract_link_hinge(job_elem))
+        extracted_info.append(links)
+
+    jobs_list = {}
+
+    for j in range(len(cols)):
+        jobs_list[cols[j]] = extracted_info[j]
+
+    num_listings = len(extracted_info[0])
+
+    return jobs_list, num_listings
+
+def extract_job_title_hinge(job_elem):
+    title_elem = job_elem.find('h5')
+    title = title_elem.text.strip()
+    return title
+
+def extract_link_hinge(job_elem):
+    link = job_elem['href']
+#     link = 'www.Indeed.co.uk/' + link
+    return link
 
 
-## ================== FUNCTIONS FOR INDEED.CO.UK =================== ##
+## ================== FUNCTIONS FOR INDEED.COM =================== ##
 
 def load_indeed_jobs_div(job_title, location):
     getVars = {'q': job_title, 'l': location, 'fromage': 'last', 'sort': 'date'}
